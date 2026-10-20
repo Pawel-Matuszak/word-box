@@ -3,5 +3,5 @@ dist
 dev-dist
 .env.local
 *.log
-.env.env
+.env
 .preview.log
