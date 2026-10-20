@@ -1,7 +1,7 @@
 import type { ComponentChildren } from 'preact'
-import { ownerFilter, owners, profile } from '../store'
+import { isGuest, ownerFilter, owners, profile } from '../store'
 import type { Word } from '../types'
-import { Chip, LevelChip } from './ui'
+import { LevelChip } from './ui'
 
 export type Direction = 'en-pl' | 'pl-en'
 
@@ -76,15 +76,23 @@ function highlight(sentence: string, term: string) {
   )
 }
 
-export function OwnerFilter() {
-  const others = owners.value.filter((o) => o !== profile.value)
+/** Choices for the "Word list" setting. */
+export function wordListOptions() {
+  return [
+    { value: 'all', label: "Everyone's words" },
+    ...(isGuest.value ? [] : [{ value: 'mine', label: 'Only mine' }]),
+    ...owners.value.filter((o) => o !== profile.value).map((o) => ({ value: o, label: `${o}'s words` })),
+  ]
+}
+
+/** Shown on Home and Words when the list is narrowed down, so a smaller box is never a surprise. */
+export function FilterNote() {
+  const f = ownerFilter.value
+  if (f === 'all' || (f === 'mine' && isGuest.value)) return null
   return (
-    <div class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="group" aria-label="Whose words">
-      <Chip active={ownerFilter.value === 'mine'} onClick={() => (ownerFilter.value = 'mine')}>My words</Chip>
-      {others.map((o) => (
-        <Chip active={ownerFilter.value === o} onClick={() => (ownerFilter.value = o)}>{o}'s words</Chip>
-      ))}
-      <Chip active={ownerFilter.value === 'all'} onClick={() => (ownerFilter.value = 'all')}>Everyone's</Chip>
-    </div>
+    <p class="text-sm text-ink-soft">
+      Showing {f === 'mine' ? 'only your' : `only ${f}'s`} words.{' '}
+      <a href="#/settings" class="font-semibold text-pen underline underline-offset-2">Change</a>
+    </p>
   )
 }

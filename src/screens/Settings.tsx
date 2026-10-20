@@ -1,7 +1,8 @@
 import { useState } from 'preact/hooks'
 import { api, isDemo } from '../api'
-import { Button, Field, Header, inputClass, toast } from '../components/ui'
-import { errorText, flushQueue, lastSynced, online, owners, pendingCount, profile, refresh, syncError, writeKey } from '../store'
+import { wordListOptions } from '../components/cards'
+import { Button, Field, Header, Icon, inputClass, toast } from '../components/ui'
+import { errorText, flushQueue, GUEST, isGuest, lastSynced, online, ownerFilter, owners, pendingCount, profile, refresh, syncError, writeKey } from '../store'
 
 export function Settings() {
   const [key, setKey] = useState(writeKey.value)
@@ -42,7 +43,7 @@ export function Settings() {
 
       <Section title="You are">
         <div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Profile">
-          {owners.value.map((o) => (
+          {[...owners.value, GUEST].map((o) => (
             <button
               type="button"
               role="radio"
@@ -54,9 +55,14 @@ export function Settings() {
             </button>
           ))}
         </div>
+        <p class="mt-3 text-sm text-ink-soft">
+          {isGuest.value
+            ? 'Progress stays on this phone and words are read-only.'
+            : `Your boxes and progress are saved as ${profile.value}.`}
+        </p>
       </Section>
 
-      <Section title="Write key">
+      {!isGuest.value && <Section title="Write key">
         <form onSubmit={saveKey} class="grid gap-3">
           <Field label="Key" hint="Needed to add or edit words and to save progress to the sheet. It is stored only on this device.">
             <input type="password" autocomplete="current-password" class={inputClass} value={key} onInput={(e) => setKey(e.currentTarget.value)} />
@@ -65,7 +71,7 @@ export function Settings() {
             {busy === 'key' ? 'Checking…' : key.trim() ? 'Save key' : 'Remove key'}
           </Button>
         </form>
-      </Section>
+      </Section>}
 
       <Section title="Sync">
         <dl class="grid gap-2 text-sm">
@@ -80,6 +86,30 @@ export function Settings() {
           {busy === 'sync' ? 'Syncing…' : 'Sync now'}
         </Button>
       </Section>
+
+      <details class="group mb-5 rounded-[20px] bg-card shadow-card">
+        <summary class="flex cursor-pointer list-none items-center p-5 text-lg font-bold [&::-webkit-details-marker]:hidden">
+          Word list
+          <span class="ml-2 text-sm font-medium text-ink-soft">{wordListOptions().find((o) => o.value === ownerFilter.value)?.label ?? "Everyone's words"}</span>
+          <Icon.back class="ml-auto size-5 -rotate-90 text-ink-soft transition group-open:rotate-90" />
+        </summary>
+        <div class="-mt-1 px-5 pb-5">
+          <p class="mb-3 text-sm text-ink-soft">Choose whose words you study, quiz and browse. Everyone shares one list by default.</p>
+          <div class="grid gap-2" role="radiogroup" aria-label="Word list">
+            {wordListOptions().map((o) => (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={ownerFilter.value === o.value}
+                onClick={() => (ownerFilter.value = o.value)}
+                class={`rounded-xl px-4 py-3 text-left font-semibold transition ${ownerFilter.value === o.value ? 'bg-pen text-card' : 'bg-desk text-ink ring-1 ring-hairline hover:bg-pen-soft'}`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </details>
     </>
   )
 }

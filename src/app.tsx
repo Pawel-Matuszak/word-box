@@ -6,13 +6,13 @@ import { Settings } from './screens/Settings'
 import { Study } from './screens/Study'
 import { Welcome } from './screens/Welcome'
 import { Words } from './screens/Words'
-import { owners, profile } from './store'
+import { GUEST, owners, profile } from './store'
 
 const screens = { home: Home, study: Study, quiz: Quiz, words: Words, settings: Settings }
 
 export function App() {
   // Ask for a name until one that still exists in the sheet is chosen.
-  if (!profile.value || (owners.value.length && !owners.value.includes(profile.value))) {
+  if (!profile.value || (profile.value !== GUEST && owners.value.length && !owners.value.includes(profile.value))) {
     return <Welcome />
   }
   const Screen = screens[route.value]

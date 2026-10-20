@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks'
 import { api, isDemo } from '../api'
 import { IndexCard } from '../components/cards'
 import { Button, Field, inputClass, Wordmark } from '../components/ui'
-import { errorText, flushQueue, loading, owners, profile, syncError, writeKey } from '../store'
+import { errorText, flushQueue, GUEST, loading, owners, profile, syncError, writeKey } from '../store'
 
 export function Welcome() {
   const [who, setWho] = useState(profile.value)
@@ -14,6 +14,10 @@ export function Welcome() {
     e.preventDefault()
     if (!who) return
     setError('')
+    if (who === GUEST) {
+      profile.value = GUEST
+      return
+    }
     if (key.trim()) {
       setBusy(true)
       try {
@@ -59,9 +63,19 @@ export function Welcome() {
                 </IndexCard>
               </button>
             ))}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={who === GUEST}
+              onClick={() => setWho(GUEST)}
+              class={`col-span-2 mt-1 rounded-[14px] border-2 border-dashed px-5 py-3 text-left transition ${who === GUEST ? 'border-pen bg-pen-soft' : 'border-hairline hover:border-pen/40'}`}
+            >
+              <span class="block font-bold">Just looking</span>
+              <span class="block text-sm text-ink-soft">Continue as a guest. Progress stays on this device.</span>
+            </button>
           </div>
 
-          <div class="mt-8">
+          <div class={`mt-8 ${who === GUEST ? 'hidden' : ''}`}>
             <Field label="Write key (optional)" hint="Lets you add and edit words and save your progress to the sheet. Without it, progress stays on this device.">
               <input
                 type="password"
@@ -76,7 +90,7 @@ export function Welcome() {
           </div>
 
           <Button type="submit" class="mt-auto w-full sm:mt-10" disabled={!who || busy}>
-            {busy ? 'Checking key…' : who ? `Open ${who}'s box` : 'Pick your name'}
+            {busy ? 'Checking key…' : who === GUEST ? 'Continue as guest' : who ? `Open ${who}'s box` : 'Pick your name'}
           </Button>
         </form>
       )}

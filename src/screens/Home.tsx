@@ -1,8 +1,8 @@
-import { OwnerFilter } from '../components/cards'
+import { FilterNote } from '../components/cards'
 import { Header, Icon } from '../components/ui'
 import { go } from '../router'
 import { BOXES } from '../srs'
-import { duePool, myProgress, pool, profile, syncError, todayTally } from '../store'
+import { duePool, isGuest, myProgress, pool, profile, syncError, todayTally } from '../store'
 
 export function Home() {
   const prog = myProgress.value
@@ -23,7 +23,7 @@ export function Home() {
         }
       />
 
-      <h1 class="text-[2.25rem] leading-tight font-extrabold tracking-tight">Hi, {profile.value}</h1>
+      <h1 class="text-[2.25rem] leading-tight font-extrabold tracking-tight">{isGuest.value ? 'Hi there' : `Hi, ${profile.value}`}</h1>
       <p class="mt-1 text-lg text-ink-soft">
         {pool.value.length === 0
           ? 'This box is empty. Add a few words to get going.'
@@ -34,8 +34,8 @@ export function Home() {
               : `${due} cards are waiting for you.`}
       </p>
 
-      <div class="mt-5">
-        <OwnerFilter />
+      <div class="mt-2">
+        <FilterNote />
       </div>
 
       {/* The box: one divider per Leitner compartment, taller when it holds more cards. */}

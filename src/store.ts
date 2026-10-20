@@ -33,10 +33,16 @@ const serverProgress = signal<Progress[]>(cached?.progress ?? [])
 /** Reviews not yet confirmed by the server, keyed by `${word_id}|${user}`. */
 export const queue = signal<Record<string, Progress>>(load('wb:queue', {}))
 
+/** A visitor who isn't one of the sheet's owners: progress stays on the device, words are read-only. */
+export const GUEST = 'Guest'
+
 export const profile = signal<string>(load('wb:profile', ''))
+export const isGuest = computed(() => profile.value === GUEST)
 export const writeKey = signal<string>(load('wb:key', ''))
-/** Whose words to practise: 'mine', 'all', or an owner name. */
-export const ownerFilter = signal<string>(load('wb:ownerFilter', 'mine'))
+/** Whose words to practise: 'all', 'mine', or an owner name. */
+export const ownerFilter = signal<string>(load('wb:wordFilter', 'all'))
+/** Guest progress, keyed by word id. Never uploaded. */
+const guestProgress = signal<Record<number, Progress>>(load('wb:guest', {}))
 
 export const loading = signal(!cached)
 export const syncError = signal('')
@@ -46,7 +52,8 @@ export const online = signal(typeof navigator === 'undefined' ? true : navigator
 effect(() => save('wb:queue', queue.value))
 effect(() => save('wb:profile', profile.value))
 effect(() => save('wb:key', writeKey.value))
-effect(() => save('wb:ownerFilter', ownerFilter.value))
+effect(() => save('wb:wordFilter', ownerFilter.value))
+effect(() => save('wb:guest', guestProgress.value))
 
 function persistData() {
   save('wb:data', {
@@ -63,6 +70,7 @@ const pkey = (wordId: number, user: string) => `${wordId}|${user}`
 
 /** Progress for the current profile, with unsynced reviews on top of what the server knows. */
 export const myProgress = computed(() => {
+  if (isGuest.value) return new Map(Object.values(guestProgress.value).map((p) => [p.word_id, p]))
   const map = new Map<number, Progress>()
   for (const p of serverProgress.value) if (p.user === profile.value) map.set(p.word_id, p)
   for (const p of Object.values(queue.value)) if (p.user === profile.value) map.set(p.word_id, p)
@@ -71,7 +79,7 @@ export const myProgress = computed(() => {
 
 export const pool = computed(() => {
   const f = ownerFilter.value
-  if (f === 'all') return words.value
+  if (f === 'all' || (f === 'mine' && isGuest.value)) return words.value
   const who = f === 'mine' ? profile.value : f
   return words.value.filter((w) => w.owner === who)
 })
@@ -156,9 +164,13 @@ export const todayTally = computed(() => {
 
 export function recordAnswer(wordId: number, correct: boolean) {
   const next = review(myProgress.value.get(wordId), wordId, profile.value, correct)
-  queue.value = { ...queue.value, [pkey(wordId, profile.value)]: next }
   const t = todayTally.value
   tally.value = { day: todayKey(), user: profile.value, reviewed: t.reviewed + 1, known: t.known + (correct ? 1 : 0) }
+  if (isGuest.value) {
+    guestProgress.value = { ...guestProgress.value, [wordId]: next }
+    return
+  }
+  queue.value = { ...queue.value, [pkey(wordId, profile.value)]: next }
   scheduleFlush()
 }
 
@@ -177,6 +189,7 @@ if (typeof window !== 'undefined') {
 // ---------- word edits (online + key only) ----------
 
 function requireWrite() {
+  if (isGuest.value) throw new Error("Guests can't change words. Pick your name in Settings.")
   if (!online.value) throw new Error('You are offline. Connect to the internet to change words.')
   if (!writeKey.value) throw new Error('Add your write key in Settings to change words.')
   return writeKey.value

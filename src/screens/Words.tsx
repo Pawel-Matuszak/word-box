@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'preact/hooks'
-import { OwnerFilter } from '../components/cards'
+import { FilterNote } from '../components/cards'
 import { Button, Chip, Field, Header, Icon, inputClass, levelTone, Sheet, toast } from '../components/ui'
 import { BOXES } from '../srs'
-import { addWord, deleteWord, errorText, levels, myProgress, online, owners, pool, profile, updateWord, writeKey } from '../store'
+import { addWord, deleteWord, errorText, isGuest, levels, myProgress, online, owners, pool, profile, updateWord, writeKey } from '../store'
 import type { Word, WordInput } from '../types'
 
 export function Words() {
   const [query, setQuery] = useState('')
   const [level, setLevel] = useState('')
   const [editing, setEditing] = useState<Word | 'new' | null>(null)
-  const canWrite = !!writeKey.value
+  const canWrite = !!writeKey.value && !isGuest.value
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -34,7 +34,11 @@ export function Words() {
 
       {!canWrite && (
         <p class="mb-4 rounded-xl bg-pen-soft px-4 py-3 text-sm text-ink">
-          You can browse words. To add or edit them, <a href="#/settings" class="font-semibold text-pen underline underline-offset-2">add your write key in Settings</a>.
+          You can browse words. To add or edit them,{' '}
+          <a href="#/settings" class="font-semibold text-pen underline underline-offset-2">
+            {isGuest.value ? 'pick your name in Settings' : 'add your write key in Settings'}
+          </a>
+          .
         </p>
       )}
 
@@ -44,7 +48,7 @@ export function Words() {
       </div>
 
       <div class="mt-3 grid gap-2">
-        <OwnerFilter />
+        <FilterNote />
         <div class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="group" aria-label="Level">
           <Chip active={!level} onClick={() => setLevel('')}>All levels</Chip>
           {levels.value.map((l) => (
@@ -89,7 +93,7 @@ export function Words() {
 
 function WordForm({ word, readOnly, onDone }: { word: Word | null; readOnly: boolean; onDone: () => void }) {
   const [form, setForm] = useState<WordInput>(
-    word ?? { word: '', translation: '', level: levels.value[0] ?? '', owner: profile.value, notes: '', example_en: '', example_pl: '' },
+    word ?? { word: '', translation: '', level: levels.value[0] ?? '', owner: owners.value.includes(profile.value) ? profile.value : (owners.value[0] ?? ''), notes: '', example_en: '', example_pl: '' },
   )
   const [busy, setBusy] = useState<'' | 'save' | 'delete'>('')
   const [confirmDelete, setConfirmDelete] = useState(false)
