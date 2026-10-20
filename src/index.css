@@ -73,6 +73,11 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Reserve the scrollbar's space on every screen, so short and long screens line up. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   font-family: var(--font-sans);
   font-optical-sizing: auto;
