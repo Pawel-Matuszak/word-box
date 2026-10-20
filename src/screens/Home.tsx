@@ -26,8 +26,10 @@ export function Home() {
         }
       />
 
-      <h1 class="text-[2.25rem] leading-tight font-extrabold tracking-tight">{isGuest.value ? 'Hi there' : `Hi, ${profile.value}`}</h1>
-      <p class="mt-1 text-lg text-ink-soft">
+      <div class="flex items-end gap-3">
+        <div class="min-w-0 flex-1">
+          <h1 class="text-[1.85rem] leading-tight font-extrabold tracking-tight">{isGuest.value ? 'Hi there' : `Hi, ${profile.value}`}</h1>
+          <p class="text-base text-ink-soft">
         {pool.value.length === 0
           ? 'This box is empty. Add a few words to get going.'
           : due === 0
@@ -35,15 +37,17 @@ export function Home() {
             : due === 1
               ? 'One card is waiting for you.'
               : `${due} cards are waiting for you.`}
-      </p>
+          </p>
+        </div>
+        <BoxHelp fresh={fresh} />
+      </div>
 
       <div class="mt-2">
         <FilterNote />
       </div>
 
       {/* The box: one divider per Leitner compartment, taller when it holds more cards. */}
-      <section class="mt-4" aria-label="Cards in each box">
-        <BoxHelp fresh={fresh} />
+      <section class="mt-5" aria-label="Cards in each box">
         <div class="relative px-3">
           <div class="flex h-36 items-end gap-1.5">
             {BOXES.map((b, i) => (
@@ -160,7 +164,7 @@ function BoxHelp({ fresh }: { fresh: boolean }) {
   }, [open])
 
   return (
-    <div ref={ref} class="relative mb-2 flex justify-end">
+    <div ref={ref} class="relative shrink-0">
       <button
         type="button"
         onClick={() => (open ? close() : setOpen(true))}

@@ -18,7 +18,7 @@ export function App() {
   const Screen = screens[route.value]
   return (
     <>
-      <main class="mx-auto max-w-lg px-4 pb-32">
+      <main class="mx-auto max-w-lg px-4 pb-28">
         <Screen />
       </main>
       <NavBar current={route.value} />
