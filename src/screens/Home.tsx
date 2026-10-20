@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { activeLabel, CategorySheet, FilterNote, hasCategories } from '../components/cards'
-import { Header, Icon } from '../components/ui'
+import { Header, Icon, ThemeToggle } from '../components/ui'
 import { go } from '../router'
 import { BOXES } from '../srs'
 import { duePool, isGuest, myProgress, pool, profile, syncError, todayTally } from '../store'
@@ -20,9 +20,12 @@ export function Home() {
     <>
       <Header
         action={
-          <a href="#/settings" class="grid size-11 place-items-center rounded-full text-ink-soft hover:bg-card hover:text-ink" aria-label="Settings">
-            <Icon.gear />
-          </a>
+          <div class="-mr-2 flex items-center">
+            <ThemeToggle />
+            <a href="#/settings" class="grid size-11 place-items-center rounded-full text-ink-soft hover:bg-card hover:text-ink" aria-label="Settings">
+              <Icon.gear />
+            </a>
+          </div>
         }
       />
 
