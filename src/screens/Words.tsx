@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'preact/hooks'
-import { FilterNote } from '../components/cards'
+import { CategoryChips, FilterNote } from '../components/cards'
 import { Button, Chip, Field, Header, Icon, inputClass, levelTone, Sheet, toast } from '../components/ui'
 import { BOXES } from '../srs'
-import { addWord, deleteWord, errorText, isGuest, levels, myProgress, online, owners, pool, profile, updateWord, writeKey } from '../store'
+import { activeCategory, addWord, ALL_WORDS, categories, deleteWord, errorText, isGuest, levels, myProgress, online, owners, pool, profile, updateWord, writeKey } from '../store'
 import type { Word, WordInput } from '../types'
 
 export function Words() {
@@ -48,6 +48,7 @@ export function Words() {
       </div>
 
       <div class="mt-3 grid gap-2">
+        <CategoryChips />
         <FilterNote />
         <div class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="group" aria-label="Level">
           <Chip active={!level} onClick={() => setLevel('')}>All levels</Chip>
@@ -75,6 +76,7 @@ export function Words() {
                   </span>
                   <span class="shrink-0 text-right text-xs text-ink-soft">
                     {BOXES[box].label}
+                    {w.category && activeCategory.value === ALL_WORDS && <span class="block">{w.category}</span>}
                     {w.owner !== profile.value && <span class="block">{w.owner}</span>}
                   </span>
                 </button>
@@ -93,7 +95,7 @@ export function Words() {
 
 function WordForm({ word, readOnly, onDone }: { word: Word | null; readOnly: boolean; onDone: () => void }) {
   const [form, setForm] = useState<WordInput>(
-    word ?? { word: '', translation: '', level: levels.value[0] ?? '', owner: owners.value.includes(profile.value) ? profile.value : (owners.value[0] ?? ''), notes: '', example_en: '', example_pl: '' },
+    word ?? { word: '', translation: '', level: levels.value[0] ?? '', owner: owners.value.includes(profile.value) ? profile.value : (owners.value[0] ?? ''), category: activeCategory.value === ALL_WORDS ? '' : activeCategory.value, notes: '', example_en: '', example_pl: '' },
   )
   const [busy, setBusy] = useState<'' | 'save' | 'delete'>('')
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -139,6 +141,7 @@ function WordForm({ word, readOnly, onDone }: { word: Word | null; readOnly: boo
         </div>
         <Pick label="Level" value={form.level} options={levels.value} onChange={(level) => setForm({ ...form, level })} />
         <Pick label="Whose word" value={form.owner} options={owners.value} onChange={(owner) => setForm({ ...form, owner })} />
+        <CategoryPick value={form.category} onChange={(category) => setForm({ ...form, category })} />
         <Field label="Example in English">
           <textarea rows={2} class={inputClass} value={form.example_en} onInput={set('example_en')} lang="en" />
         </Field>
@@ -191,6 +194,59 @@ function Pick({ label, value, options, onChange }: { label: string; value: strin
           </button>
         ))}
       </div>
+    </div>
+  )
+}
+
+/** Existing categories as pills, plus "New…" for typing one. Tapping the selected pill clears it. */
+function CategoryPick({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const known = categories.value
+  const [typing, setTyping] = useState(!!value && !known.includes(value))
+  const pill = (active: boolean) =>
+    `rounded-full px-4 py-2 text-sm font-semibold transition ${active ? 'bg-ink text-desk' : 'bg-desk text-ink-soft ring-1 ring-hairline hover:text-ink'}`
+  return (
+    <div>
+      <p class="mb-1.5 text-sm font-semibold">
+        Category <span class="font-normal text-ink-soft">(optional)</span>
+      </p>
+      <div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Category">
+        {known.map((c) => (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!typing && value === c}
+            onClick={() => {
+              setTyping(false)
+              onChange(value === c && !typing ? '' : c)
+            }}
+            class={pill(!typing && value === c)}
+          >
+            {c}
+          </button>
+        ))}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={typing}
+          onClick={() => {
+            setTyping(true)
+            onChange('')
+          }}
+          class={pill(typing)}
+        >
+          New…
+        </button>
+      </div>
+      {typing && (
+        <input
+          class={`${inputClass} mt-2`}
+          value={value}
+          onInput={(e) => onChange(e.currentTarget.value)}
+          placeholder="e.g. Food, Travel, Phrasal verbs"
+          aria-label="New category"
+          autoFocus
+        />
+      )}
     </div>
   )
 }

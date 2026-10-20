@@ -23,6 +23,13 @@ const rows: [string, string, string, string, string, string][] = [
   ['superstitious', 'przesądny', 'Średnie', 'Kinia', 'Jest tak przesądna, że boi się czarnych kotów.', 'She is so superstitious that she is afraid of black cats.'],
 ]
 
+const categoryOf: Record<string, string> = {
+  emboldened: 'Character', diligent: 'Character', courtesy: 'Character', superstitious: 'Character', epitome: 'Character',
+  crucible: 'Fantasy', robe: 'Fantasy', attire: 'Fantasy',
+  cerulean: 'Description', hunched: 'Description', vivid: 'Description', dappled: 'Description',
+  acids: 'Health & body', circadian: 'Health & body', exacerbate: 'Health & body', exertion: 'Health & body', 'muscle bulk': 'Health & body',
+}
+
 export const demoData: Bootstrap = {
   words: rows.map(([word, translation, level, owner, example_pl, example_en], i) => ({
     id: i + 1,
@@ -30,11 +37,13 @@ export const demoData: Bootstrap = {
     translation,
     level,
     owner,
+    category: categoryOf[word] ?? '',
     notes: '',
     example_pl,
     example_en,
   })),
   levels: ['Łatwe', 'Średnie', 'Trudne'],
   owners: ['Paweł', 'Kinia'],
+  categories: ['Character', 'Description', 'Fantasy', 'Health & body'],
   progress: [],
 }

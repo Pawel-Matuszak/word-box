@@ -1,7 +1,7 @@
 import type { ComponentChildren } from 'preact'
-import { isGuest, ownerFilter, owners, profile } from '../store'
+import { activeCategory, ALL_WORDS, categories, category, categoryCounts, isGuest, NO_CATEGORY, ownerFilter, ownerPool, owners, profile } from '../store'
 import type { Word } from '../types'
-import { LevelChip } from './ui'
+import { Chip, LevelChip } from './ui'
 
 export type Direction = 'en-pl' | 'pl-en'
 
@@ -29,7 +29,7 @@ export function Flashcard({ word, dir, flipped, onFlip }: { word: Word; dir: Dir
   const head = (
     <>
       <LevelChip level={word.level} />
-      <span class="ml-auto text-xs font-medium text-ink-soft">{word.owner}</span>
+      <span class="ml-auto text-xs font-medium text-ink-soft">{word.category || word.owner}</span>
     </>
   )
   return (
@@ -94,5 +94,27 @@ export function FilterNote() {
       Showing {f === 'mine' ? 'only your' : `only ${f}'s`} words.{' '}
       <a href="#/settings" class="font-semibold text-pen underline underline-offset-2">Change</a>
     </p>
+  )
+}
+
+export const categoryLabel = (c: string) => (c === NO_CATEGORY ? 'No category' : c)
+
+/** Picks the deck to study. Shared by Home and Words; hidden until some word has a category. */
+export function CategoryChips() {
+  const counts = categoryCounts.value
+  const named = categories.value.filter((c) => counts.get(c))
+  if (!named.length) return null
+  const options = [...named, ...(counts.get(NO_CATEGORY) ? [NO_CATEGORY] : [])]
+  const pill = (value: string, label: string, n: number) => (
+    <Chip active={activeCategory.value === value} onClick={() => (category.value = value)}>
+      {label}
+      <span class="ml-1.5 tabular-nums opacity-55">{n}</span>
+    </Chip>
+  )
+  return (
+    <div class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="group" aria-label="Category">
+      {pill(ALL_WORDS, 'All words', ownerPool.value.length)}
+      {options.map((c) => pill(c, categoryLabel(c), counts.get(c) ?? 0))}
+    </div>
   )
 }

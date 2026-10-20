@@ -1,8 +1,8 @@
-import { FilterNote } from '../components/cards'
+import { CategoryChips, FilterNote } from '../components/cards'
 import { Header, Icon } from '../components/ui'
 import { go } from '../router'
 import { BOXES } from '../srs'
-import { duePool, isGuest, myProgress, pool, profile, syncError, todayTally } from '../store'
+import { activeCategory, ALL_WORDS, duePool, isGuest, myProgress, NO_CATEGORY, pool, profile, syncError, todayTally } from '../store'
 
 export function Home() {
   const prog = myProgress.value
@@ -10,6 +10,8 @@ export function Home() {
   for (const w of pool.value) counts[prog.get(w.id)?.box ?? 0]++
   const max = Math.max(1, ...counts)
   const due = duePool.value.length
+  const c = activeCategory.value
+  const where = c === ALL_WORDS ? '' : c === NO_CATEGORY ? ' among words with no category' : ` in ${c}`
 
   const { reviewed, known } = todayTally.value
 
@@ -28,13 +30,14 @@ export function Home() {
         {pool.value.length === 0
           ? 'This box is empty. Add a few words to get going.'
           : due === 0
-            ? 'All caught up. New cards will be due tomorrow.'
+            ? `All caught up${where}. New cards will be due tomorrow.`
             : due === 1
-              ? 'One card is waiting for you.'
-              : `${due} cards are waiting for you.`}
+              ? `One card is waiting for you${where}.`
+              : `${due} cards are waiting for you${where}.`}
       </p>
 
-      <div class="mt-2">
+      <div class="mt-4 grid gap-2">
+        <CategoryChips />
         <FilterNote />
       </div>
 
