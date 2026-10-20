@@ -14,6 +14,9 @@ export function Home() {
 
   const { reviewed, known } = todayTally.value
   const [picking, setPicking] = useState(false)
+  // Explain the box until the first answer; after that it's one tap away.
+  const fresh = prog.size === 0
+  const [help, setHelp] = useState(false)
 
   return (
     <>
@@ -77,9 +80,25 @@ export function Home() {
             )}
           </div>
         </div>
-        <p class="mt-3 px-1 text-sm text-ink-soft">
-          Cards move one box to the right each time you know them, and go back to Daily when you miss one.
-        </p>
+        <div class="mt-3 flex items-start gap-3 px-1">
+          {(fresh || help) && (
+            <p id="box-help" class="flex-1 text-sm text-ink-soft">
+              Cards move one box to the right each time you know them, and go back to Daily when you miss one.
+            </p>
+          )}
+          {!fresh && (
+            <button
+              type="button"
+              onClick={() => setHelp(!help)}
+              aria-expanded={help}
+              aria-controls="box-help"
+              aria-label="How the box works"
+              class={`ml-auto grid size-7 shrink-0 place-items-center rounded-full text-sm font-bold ring-1 transition ${help ? 'bg-ink text-desk ring-ink' : 'text-ink-soft ring-hairline hover:text-ink'}`}
+            >
+              ?
+            </button>
+          )}
+        </div>
       </section>
 
       <div class="mt-7 grid gap-3">
