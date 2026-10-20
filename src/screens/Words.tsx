@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'preact/hooks'
-import { CategoryChips, FilterNote } from '../components/cards'
+import { CategoryPill, FilterNote } from '../components/cards'
 import { Button, Chip, Field, Header, Icon, inputClass, levelTone, Sheet, toast } from '../components/ui'
 import { BOXES } from '../srs'
 import { activeCategory, addWord, ALL_WORDS, categories, deleteWord, errorText, isGuest, levels, myProgress, online, owners, pool, profile, updateWord, writeKey } from '../store'
@@ -48,9 +48,9 @@ export function Words() {
       </div>
 
       <div class="mt-3 grid gap-2">
-        <CategoryChips />
         <FilterNote />
-        <div class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="group" aria-label="Level">
+        <div class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="group" aria-label="Filters">
+          <CategoryPill />
           <Chip active={!level} onClick={() => setLevel('')}>All levels</Chip>
           {levels.value.map((l) => (
             <Chip active={level === l} onClick={() => setLevel(level === l ? '' : l)}>{l}</Chip>

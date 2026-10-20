@@ -1,4 +1,5 @@
-import { CategoryChips, FilterNote } from '../components/cards'
+import { useState } from 'preact/hooks'
+import { activeLabel, CategorySheet, FilterNote, hasCategories } from '../components/cards'
 import { Header, Icon } from '../components/ui'
 import { go } from '../router'
 import { BOXES } from '../srs'
@@ -14,6 +15,7 @@ export function Home() {
   const where = c === ALL_WORDS ? '' : c === NO_CATEGORY ? ' among words with no category' : ` in ${c}`
 
   const { reviewed, known } = todayTally.value
+  const [picking, setPicking] = useState(false)
 
   return (
     <>
@@ -36,8 +38,7 @@ export function Home() {
               : `${due} cards are waiting for you${where}.`}
       </p>
 
-      <div class="mt-4 grid gap-2">
-        <CategoryChips />
+      <div class="mt-2">
         <FilterNote />
       </div>
 
@@ -61,7 +62,21 @@ export function Home() {
                 <span class="flex-1 text-center text-[11px] leading-tight font-semibold text-white/80">{b.label}</span>
               ))}
             </div>
-            <div class="mx-auto mt-3 h-2 w-16 rounded-full bg-black/25" />
+            {hasCategories() ? (
+              // The label slot on the front of the box: says which cards are inside, tap to swap.
+              <button
+                type="button"
+                onClick={() => setPicking(true)}
+                aria-haspopup="dialog"
+                aria-label={`Category: ${activeLabel()}. Change category`}
+                class="mx-auto mt-3 flex max-w-[85%] items-center gap-1.5 rounded-md bg-card px-4 py-0.5 text-pen ring-2 ring-black/25 transition hover:-translate-y-px"
+              >
+                <span class="hand truncate text-[1.45rem] leading-8 font-bold">{activeLabel()}</span>
+                <Icon.back class="size-4 shrink-0 -rotate-90 text-ink-soft" />
+              </button>
+            ) : (
+              <div class="mx-auto mt-3 h-2 w-16 rounded-full bg-black/25" />
+            )}
           </div>
         </div>
         <p class="mt-3 px-1 text-sm text-ink-soft">
@@ -105,6 +120,8 @@ export function Home() {
         <Stat label="Known today" value={known} />
         <Stat label="Words in box" value={pool.value.length} />
       </dl>
+
+      <CategorySheet open={picking} onClose={() => setPicking(false)} />
 
       {syncError.value && <p class="mt-5 rounded-xl bg-berry-soft px-4 py-3 text-sm font-medium text-berry">{syncError.value}</p>}
     </>
