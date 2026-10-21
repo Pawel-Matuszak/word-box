@@ -26,9 +26,13 @@ const cached = load<Bootstrap | null>('wb:data', null)
 
 // ---------- state ----------
 
-export const words = signal<Word[]>(cached?.words ?? [])
+// Older caches and backends have no category column.
+const withCategory = (list: Word[]) => list.map((w) => ({ ...w, category: w.category ?? '' }))
+
+export const words = signal<Word[]>(withCategory(cached?.words ?? []))
 export const levels = signal<string[]>(cached?.levels ?? [])
 export const owners = signal<string[]>(cached?.owners ?? [])
+const listedCategories = signal<string[]>(cached?.categories ?? [])
 const serverProgress = signal<Progress[]>(cached?.progress ?? [])
 /** Reviews not yet confirmed by the server, keyed by `${word_id}|${user}`. */
 export const queue = signal<Record<string, Progress>>(load('wb:queue', {}))
@@ -41,6 +45,10 @@ export const isGuest = computed(() => profile.value === GUEST)
 export const writeKey = signal<string>(load('wb:key', ''))
 /** Whose words to practise: 'all', 'mine', or an owner name. */
 export const ownerFilter = signal<string>(load('wb:wordFilter', 'all'))
+/** The deck being studied: ALL_WORDS, NO_CATEGORY, or a category name. */
+export const ALL_WORDS = '*'
+export const NO_CATEGORY = ''
+export const category = signal<string>(load('wb:category', ALL_WORDS))
 /** Guest progress, keyed by word id. Never uploaded. */
 const guestProgress = signal<Record<number, Progress>>(load('wb:guest', {}))
 
@@ -54,12 +62,14 @@ effect(() => save('wb:profile', profile.value))
 effect(() => save('wb:key', writeKey.value))
 effect(() => save('wb:wordFilter', ownerFilter.value))
 effect(() => save('wb:guest', guestProgress.value))
+effect(() => save('wb:category', category.value))
 
 function persistData() {
   save('wb:data', {
     words: words.value,
     levels: levels.value,
     owners: owners.value,
+    categories: listedCategories.value,
     progress: serverProgress.value,
   } satisfies Bootstrap)
 }
@@ -77,11 +87,35 @@ export const myProgress = computed(() => {
   return map
 })
 
-export const pool = computed(() => {
+/** Words left after the owner filter in Settings. */
+export const ownerPool = computed(() => {
   const f = ownerFilter.value
   if (f === 'all' || (f === 'mine' && isGuest.value)) return words.value
   const who = f === 'mine' ? profile.value : f
   return words.value.filter((w) => w.owner === who)
+})
+
+/** Category names: the Lists tab's order first, then any others typed on words. */
+export const categories = computed(() => {
+  const listed = listedCategories.value
+  const extra = [...new Set(words.value.map((w) => w.category))].filter((c) => c !== NO_CATEGORY && !listed.includes(c))
+  return [...listed, ...extra.sort((a, b) => a.localeCompare(b))]
+})
+
+/** How many words of the owner pool sit in each category, NO_CATEGORY included. */
+export const categoryCounts = computed(() => {
+  const counts = new Map<string, number>()
+  for (const w of ownerPool.value) counts.set(w.category, (counts.get(w.category) ?? 0) + 1)
+  return counts
+})
+
+/** The selected category, or ALL_WORDS when it has no words any more (renamed, deleted, or filtered out). */
+export const activeCategory = computed(() => (categoryCounts.value.get(category.value) ? category.value : ALL_WORDS))
+
+/** Words in play for studying, quizzes and the box. */
+export const pool = computed(() => {
+  const c = activeCategory.value
+  return c === ALL_WORDS ? ownerPool.value : ownerPool.value.filter((w) => w.category === c)
 })
 
 export const duePool = computed(() => {
@@ -97,9 +131,10 @@ export const pendingCount = computed(() => Object.keys(queue.value).length)
 export async function refresh() {
   try {
     const data = await fetchBootstrap()
-    words.value = data.words
+    words.value = withCategory(data.words)
     levels.value = data.levels
     owners.value = data.owners
+    listedCategories.value = data.categories ?? []
     // A bootstrap read can race an upload, so never let an older server row replace a newer one we already sent.
     const merged = new Map(data.progress.map((p) => [pkey(p.word_id, p.user), p]))
     for (const p of serverProgress.value) {

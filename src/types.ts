@@ -4,6 +4,8 @@ export interface Word {
   translation: string
   level: string
   owner: string
+  /** Topic the word belongs to; '' when it has none. */
+  category: string
   notes: string
   example_pl: string
   example_en: string
@@ -25,5 +27,6 @@ export interface Bootstrap {
   words: Word[]
   levels: string[]
   owners: string[]
+  categories: string[]
   progress: Progress[]
 }

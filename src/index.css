@@ -21,27 +21,26 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --desk: #141a2a;
-    --card: #1e2638;
-    --ink: #e8ebf4;
-    --ink-soft: #9aa3bf;
-    --pen: #9db0ff;
-    --pen-soft: #27315a;
-    --rule: #2c3651;
-    --margin: #f07a8a;
-    --leaf: #5cc197;
-    --leaf-soft: #1c3a30;
-    --amber: #f0b653;
-    --amber-soft: #3d311b;
-    --berry: #f07a8a;
-    --berry-soft: #43222a;
-    --box: #3a4a7a;
-    --hairline: rgb(232 235 244 / 0.1);
-    --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 12px 30px -14px rgb(0 0 0 / 0.7);
-    color-scheme: dark;
-  }
+/* data-theme is set before first paint by the script in index.html, then kept in sync by src/theme.ts. */
+:root[data-theme='dark'] {
+  --desk: #141a2a;
+  --card: #1e2638;
+  --ink: #e8ebf4;
+  --ink-soft: #9aa3bf;
+  --pen: #9db0ff;
+  --pen-soft: #27315a;
+  --rule: #2c3651;
+  --margin: #f07a8a;
+  --leaf: #5cc197;
+  --leaf-soft: #1c3a30;
+  --amber: #f0b653;
+  --amber-soft: #3d311b;
+  --berry: #f07a8a;
+  --berry-soft: #43222a;
+  --box: #3a4a7a;
+  --hairline: rgb(232 235 244 / 0.1);
+  --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 12px 30px -14px rgb(0 0 0 / 0.7);
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -71,6 +70,11 @@ body {
   background: var(--desk);
   color: var(--ink);
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Reserve the scrollbar's space on every screen, so short and long screens line up. */
+html {
+  scrollbar-gutter: stable;
 }
 
 body {

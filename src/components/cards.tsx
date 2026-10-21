@@ -1,7 +1,9 @@
 import type { ComponentChildren } from 'preact'
-import { isGuest, ownerFilter, owners, profile } from '../store'
+import { useState } from 'preact/hooks'
+import { isDue } from '../srs'
+import { activeCategory, ALL_WORDS, categories, category, categoryCounts, isGuest, myProgress, NO_CATEGORY, ownerFilter, ownerPool, owners, profile } from '../store'
 import type { Word } from '../types'
-import { LevelChip } from './ui'
+import { Icon, LevelChip, Sheet } from './ui'
 
 export type Direction = 'en-pl' | 'pl-en'
 
@@ -29,7 +31,7 @@ export function Flashcard({ word, dir, flipped, onFlip }: { word: Word; dir: Dir
   const head = (
     <>
       <LevelChip level={word.level} />
-      <span class="ml-auto text-xs font-medium text-ink-soft">{word.owner}</span>
+      <span class="ml-auto text-xs font-medium text-ink-soft">{word.category || word.owner}</span>
     </>
   )
   return (
@@ -94,5 +96,82 @@ export function FilterNote() {
       Showing {f === 'mine' ? 'only your' : `only ${f}'s`} words.{' '}
       <a href="#/settings" class="font-semibold text-pen underline underline-offset-2">Change</a>
     </p>
+  )
+}
+
+export const categoryLabel = (c: string) => (c === NO_CATEGORY ? 'No category' : c)
+
+/** Picker rows: "All words", each category with words, then NO_CATEGORY if needed. */
+function categoryOptions() {
+  const counts = categoryCounts.value
+  const named = categories.value.filter((c) => counts.get(c))
+  if (!named.length) return []
+  return [ALL_WORDS, ...named, ...(counts.get(NO_CATEGORY) ? [NO_CATEGORY] : [])]
+}
+
+export const hasCategories = () => categoryOptions().length > 0
+export const activeLabel = () => (activeCategory.value === ALL_WORDS ? 'All words' : categoryLabel(activeCategory.value))
+
+/** Bottom sheet listing the decks, with how many cards are due in each. */
+export function CategorySheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const now = Date.now()
+  const prog = myProgress.value
+  const stats = new Map<string, { total: number; due: number }>()
+  for (const w of ownerPool.value) {
+    const due = isDue(prog.get(w.id), now) ? 1 : 0
+    for (const k of [ALL_WORDS, w.category]) {
+      const s = stats.get(k) ?? { total: 0, due: 0 }
+      stats.set(k, { total: s.total + 1, due: s.due + due })
+    }
+  }
+  return (
+    <Sheet open={open} onClose={onClose} title="Choose a category">
+      <ul class="-mx-1 grid gap-1" role="radiogroup" aria-label="Category">
+        {categoryOptions().map((c) => {
+          const active = activeCategory.value === c
+          const s = stats.get(c) ?? { total: 0, due: 0 }
+          return (
+            <li>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => {
+                  category.value = c
+                  onClose()
+                }}
+                class={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${active ? 'bg-pen text-card' : 'hover:bg-desk'}`}
+              >
+                <span class={`min-w-0 flex-1 truncate font-semibold`}>{c === ALL_WORDS ? 'All words' : categoryLabel(c)}</span>
+                {s.due > 0 && <span class={`text-sm font-semibold tabular-nums ${active ? 'text-card' : 'text-pen'}`}>{s.due} due</span>}
+                <span class={`w-8 text-right text-sm tabular-nums ${active ? 'text-card/75' : 'text-ink-soft'}`}>{s.total}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </Sheet>
+  )
+}
+
+/** Compact pill for the Words filter row that opens the category sheet. */
+export function CategoryPill() {
+  const [open, setOpen] = useState(false)
+  if (!hasCategories()) return null
+  const on = activeCategory.value !== ALL_WORDS
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        class={`flex shrink-0 items-center gap-1 rounded-full py-1.5 pr-2.5 pl-3.5 text-sm font-medium transition ${on ? 'bg-pen text-card' : 'bg-card text-ink-soft ring-1 ring-hairline hover:text-ink'}`}
+      >
+        {on ? activeLabel() : 'All categories'}
+        <Icon.back class="size-4 -rotate-90" />
+      </button>
+      <span class="my-1.5 w-px shrink-0 bg-hairline" aria-hidden="true" />
+      <CategorySheet open={open} onClose={() => setOpen(false)} />
+    </>
   )
 }

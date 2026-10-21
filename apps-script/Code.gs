@@ -4,7 +4,7 @@
  * Bound to the "Słówka" spreadsheet. Deploy as a Web App:
  *   Execute as: Me, Who has access: Anyone
  *
- * GET  ?action=bootstrap            -> { words, levels, owners, progress }
+ * GET  ?action=bootstrap            -> { words, levels, owners, categories, progress }
  * POST { key, action, payload }     -> writes (body sent as text/plain to skip CORS preflight)
  *
  * Every response is { ok: true, data } or { ok: false, error }.
@@ -13,7 +13,7 @@
 var WORDS_SHEET = 'Main';
 var LISTS_SHEET = 'Lists';
 var PROGRESS_SHEET = 'Progress';
-var WORD_FIELDS = ['word', 'translation', 'level', 'owner', 'notes', 'example_pl', 'example_en'];
+var WORD_FIELDS = ['word', 'translation', 'level', 'owner', 'category', 'notes', 'example_pl', 'example_en'];
 var PROGRESS_HEADERS = ['word_id', 'user', 'box', 'due', 'correct', 'wrong', 'last_seen'];
 
 /** Run once from the editor: sets a random write key and creates the Progress tab. */
@@ -67,6 +67,7 @@ function bootstrap_() {
     words: readTable_(sheet_(WORDS_SHEET)).map(toWord_),
     levels: column_(lists, 0),
     owners: column_(lists, 1),
+    categories: column_(lists, 2),
     progress: readTable_(progressSheet_()).map(toProgress_),
   };
 }
