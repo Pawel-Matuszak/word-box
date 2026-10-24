@@ -10,7 +10,10 @@ import type { Word } from '../types'
 const SESSION_SIZE = 20
 const direction = signal<Direction>('pl-en')
 /** How far a card has to be dragged before letting go counts as an answer. */
-const SWIPE_PX = 90
+const SWIPE_PX = 60
+/** A quick flick counts too, even if it is short: px per ms, and the least distance it must still cover. */
+const FLICK_SPEED = 0.35
+const FLICK_PX = 20
 
 /** One answer in this session, with what it changed so it can be taken back. */
 type Step = { answered: AnsweredCard; counted: boolean; requeued: boolean }
@@ -148,7 +151,8 @@ export function Study() {
       <div class="relative mt-6">
         {remaining > 1 && <div class="index-card plain absolute inset-x-3 -top-2 h-24 rotate-[1.5deg] rounded-[14px] opacity-70" />}
         <div key={`${card.id}-${index}`} class="deal-in relative">
-          <div {...swipe.bind} class="relative touch-pan-y select-none" style={swipe.style}>
+          {/* touch-none: if the browser may pan, Safari grabs any slightly diagonal drag, cancels the swipe and scrolls the page. */}
+          <div {...swipe.bind} class="relative touch-none select-none" style={swipe.style}>
             <Flashcard word={card} dir={direction.value} flipped={flipped} onFlip={() => setFlipped((f) => !f)} />
             <Stamp opacity={-swipe.pull} class="right-4 rotate-[8deg] border-berry text-berry">
               Again
@@ -215,6 +219,9 @@ function useSwipe(onSwipe: (correct: boolean) => void) {
   const start = useRef<{ id: number; x: number; y: number } | null>(null)
   const moved = useRef(false)
   const offset = useRef(0)
+  // Speed of the drag in px/ms, smoothed over the last few moves, so a flick can count.
+  const velocity = useRef(0)
+  const last = useRef({ x: 0, t: 0 })
 
   function move(x: number) {
     offset.current = x
@@ -236,7 +243,10 @@ function useSwipe(onSwipe: (correct: boolean) => void) {
     if (!start.current || start.current.id !== e.pointerId) return
     start.current = null
     setDragging(false)
-    if (e.type === 'pointerup' && Math.abs(offset.current) > SWIPE_PX) fling(offset.current > 0 ? 1 : -1)
+    const x = offset.current
+    // A flick only counts if the card was still heading that way when the finger lifted.
+    const flicked = Math.abs(x) > FLICK_PX && Math.abs(velocity.current) > FLICK_SPEED && Math.sign(velocity.current) === Math.sign(x)
+    if (e.type === 'pointerup' && moved.current && (Math.abs(x) > SWIPE_PX || flicked)) fling(x > 0 ? 1 : -1)
     else move(0)
   }
 
@@ -254,18 +264,19 @@ function useSwipe(onSwipe: (correct: boolean) => void) {
         if (leaving || e.button > 0) return
         start.current = { id: e.pointerId, x: e.clientX, y: e.clientY }
         moved.current = false
+        velocity.current = 0
+        last.current = { x: e.clientX, t: e.timeStamp }
       },
       onPointerMove: (e: PointerEvent) => {
         const s = start.current
         if (!s || s.id !== e.pointerId) return
         const ddx = e.clientX - s.x
+        const dt = e.timeStamp - last.current.t
+        if (dt > 0) velocity.current = 0.6 * ((e.clientX - last.current.x) / dt) + 0.4 * velocity.current
+        last.current = { x: e.clientX, t: e.timeStamp }
         if (!moved.current) {
-          if (Math.abs(ddx) < 8) return
-          // Mostly vertical: leave it to the page scroll.
-          if (Math.abs(e.clientY - s.y) > Math.abs(ddx)) {
-            start.current = null
-            return
-          }
+          // Anything past a small wobble is a drag, at any angle; only the sideways part moves the card.
+          if (Math.hypot(ddx, e.clientY - s.y) < 6) return
           moved.current = true
           setDragging(true)
           ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)

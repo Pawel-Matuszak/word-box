@@ -75,13 +75,15 @@ body {
 /* Reserve the scrollbar's space on every screen, so short and long screens line up. */
 html {
   scrollbar-gutter: stable;
+  /* Safari rubber-bands the root scroller, not body, so the bounce has to be switched off here. */
+  overscroll-behavior: none;
 }
 
 body {
   font-family: var(--font-sans);
   font-optical-sizing: auto;
   min-height: 100dvh;
-  overscroll-behavior-y: none;
+  overscroll-behavior: none;
   /* A flashcard swiped off screen shouldn't widen the page. */
   overflow-x: clip;
 }
