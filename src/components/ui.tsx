@@ -25,6 +25,7 @@ export const Icon = {
   plus: svg(<path d="M12 5v14M5 12h14" />),
   search: svg(<><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></>),
   close: svg(<path d="M6 6l12 12M18 6 6 18" />),
+  undo: svg(<><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></>),
   swap: svg(<><path d="M7 7h12l-3-3M17 17H5l3 3" /></>),
   cloud: svg(<path d="M7 18.5a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.5 1.6A3.8 3.8 0 0 1 17.5 18.5z" />),
 }

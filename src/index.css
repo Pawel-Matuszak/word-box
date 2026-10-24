@@ -82,6 +82,8 @@ body {
   font-optical-sizing: auto;
   min-height: 100dvh;
   overscroll-behavior-y: none;
+  /* A flashcard swiped off screen shouldn't widen the page. */
+  overflow-x: clip;
 }
 
 :focus-visible {

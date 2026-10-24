@@ -197,15 +197,34 @@ export const todayTally = computed(() => {
   return t.day === todayKey() && t.user === profile.value ? t : { reviewed: 0, known: 0 }
 })
 
-export function recordAnswer(wordId: number, correct: boolean) {
-  const next = review(myProgress.value.get(wordId), wordId, profile.value, correct)
+/** What an answer replaced, so undoAnswer can put it back. */
+export type AnsweredCard = { wordId: number; prev: Progress | undefined; tally: Tally }
+
+export function recordAnswer(wordId: number, correct: boolean): AnsweredCard {
+  const prev = myProgress.value.get(wordId)
+  const before = tally.value
+  const next = review(prev, wordId, profile.value, correct)
   const t = todayTally.value
   tally.value = { day: todayKey(), user: profile.value, reviewed: t.reviewed + 1, known: t.known + (correct ? 1 : 0) }
+  if (isGuest.value) guestProgress.value = { ...guestProgress.value, [wordId]: next }
+  else {
+    queue.value = { ...queue.value, [pkey(wordId, profile.value)]: next }
+    scheduleFlush()
+  }
+  return { wordId, prev, tally: before }
+}
+
+export function undoAnswer({ wordId, prev, tally: before }: AnsweredCard) {
+  tally.value = before
   if (isGuest.value) {
-    guestProgress.value = { ...guestProgress.value, [wordId]: next }
+    const rest = { ...guestProgress.value }
+    delete rest[wordId]
+    guestProgress.value = prev ? { ...rest, [wordId]: prev } : rest
     return
   }
-  queue.value = { ...queue.value, [pkey(wordId, profile.value)]: next }
+  // The answer may already be on the server, so send the old state back as a fresh review that wins the last_seen merge.
+  const old = prev ?? { word_id: wordId, user: profile.value, box: 0, due: 0, correct: 0, wrong: 0, last_seen: 0 }
+  queue.value = { ...queue.value, [pkey(wordId, profile.value)]: { ...old, last_seen: Date.now() } }
   scheduleFlush()
 }
 

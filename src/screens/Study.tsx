@@ -1,13 +1,19 @@
 import { signal } from '@preact/signals'
-import { useEffect, useMemo, useState } from 'preact/hooks'
+import type { ComponentChildren } from 'preact'
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { type Direction, Flashcard, IndexCard } from '../components/cards'
 import { Button, Header, Icon, Segmented, shuffle } from '../components/ui'
 import { go } from '../router'
-import { duePool, pool, recordAnswer } from '../store'
+import { type AnsweredCard, duePool, pool, recordAnswer, undoAnswer } from '../store'
 import type { Word } from '../types'
 
 const SESSION_SIZE = 20
-const direction = signal<Direction>('en-pl')
+const direction = signal<Direction>('pl-en')
+/** How far a card has to be dragged before letting go counts as an answer. */
+const SWIPE_PX = 90
+
+/** One answer in this session, with what it changed so it can be taken back. */
+type Step = { answered: AnsweredCard; counted: boolean; requeued: boolean }
 
 export function Study() {
   const [practice, setPractice] = useState(false)
@@ -18,11 +24,13 @@ export function Study() {
   const [flipped, setFlipped] = useState(false)
   const [known, setKnown] = useState(0)
   const [missed] = useState(() => new Set<number>())
+  const [history, setHistory] = useState<Step[]>([])
 
   useEffect(() => {
     setDeck(initial)
     setIndex(0)
     setKnown(0)
+    setHistory([])
     missed.clear()
   }, [initial])
 
@@ -31,26 +39,47 @@ export function Study() {
 
   function answer(correct: boolean) {
     if (!card) return
-    recordAnswer(card.id, correct)
+    const answered = recordAnswer(card.id, correct)
+    const first = !missed.has(card.id)
     if (correct) {
-      if (!missed.has(card.id)) setKnown((k) => k + 1)
-    } else if (!missed.has(card.id)) {
+      if (first) setKnown((k) => k + 1)
+    } else if (first) {
       // Missed cards come back once at the end of the session.
       missed.add(card.id)
       setDeck((d) => [...d, card])
     }
+    setHistory((h) => [...h, { answered, counted: correct && first, requeued: !correct && first }])
     setFlipped(false)
     setIndex((i) => i + 1)
+  }
+
+  const swipe = useSwipe(answer)
+
+  function undo() {
+    const step = history[history.length - 1]
+    if (!step || swipe.leaving) return
+    undoAnswer(step.answered)
+    if (step.counted) setKnown((k) => k - 1)
+    if (step.requeued) {
+      // Steps are undone newest first, so the card it put back is still the last one in the deck.
+      missed.delete(step.answered.wordId)
+      setDeck((d) => d.slice(0, -1))
+    }
+    setHistory((h) => h.slice(0, -1))
+    setFlipped(false)
+    setIndex((i) => i - 1)
   }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).closest('input, textarea')) return
-      if (e.key === ' ' || e.key === 'Enter') {
+      if (e.key === 'Backspace' || e.key === 'z') undo()
+      else if (!card) return
+      else if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault()
         setFlipped((f) => !f)
-      } else if (flipped && (e.key === 'ArrowLeft' || e.key === '1')) answer(false)
-      else if (flipped && (e.key === 'ArrowRight' || e.key === '2')) answer(true)
+      } else if (e.key === 'ArrowLeft' || e.key === '1') swipe.fling(-1)
+      else if (e.key === 'ArrowRight' || e.key === '2') swipe.fling(1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -82,6 +111,7 @@ export function Study() {
           <Button variant="ghost" onClick={() => setPractice((p) => !p)}>
             Study another round
           </Button>
+          <UndoButton onClick={undo} disabled={!history.length} class="justify-self-center" />
         </div>
       </>
     )
@@ -104,8 +134,8 @@ export function Study() {
             setFlipped(false)
           }}
           options={[
-            { value: 'en-pl', label: 'English → Polish' },
             { value: 'pl-en', label: 'Polish → English' },
+            { value: 'en-pl', label: 'English → Polish' },
           ]}
         />
       </div>
@@ -118,21 +148,141 @@ export function Study() {
       <div class="relative mt-6">
         {remaining > 1 && <div class="index-card plain absolute inset-x-3 -top-2 h-24 rotate-[1.5deg] rounded-[14px] opacity-70" />}
         <div key={`${card.id}-${index}`} class="deal-in relative">
-          <Flashcard word={card} dir={direction.value} flipped={flipped} onFlip={() => setFlipped((f) => !f)} />
+          <div {...swipe.bind} class="relative touch-pan-y select-none" style={swipe.style}>
+            <Flashcard word={card} dir={direction.value} flipped={flipped} onFlip={() => setFlipped((f) => !f)} />
+            <Stamp opacity={-swipe.pull} class="right-4 rotate-[8deg] border-berry text-berry">
+              Again
+            </Stamp>
+            <Stamp opacity={swipe.pull} class="left-4 -rotate-[8deg] border-leaf text-leaf">
+              Knew it
+            </Stamp>
+          </div>
         </div>
       </div>
 
-      <div class={`mt-6 grid grid-cols-2 gap-3 transition ${flipped ? '' : 'pointer-events-none opacity-0'}`} aria-hidden={!flipped}>
-        <button type="button" onClick={() => answer(false)} tabIndex={flipped ? 0 : -1} class="min-h-14 rounded-2xl bg-berry-soft text-lg font-bold text-berry transition active:scale-[.98]">
-          Again
+      <div class="mt-5 flex items-center justify-between gap-2 text-sm font-semibold">
+        <button type="button" onClick={() => swipe.fling(-1)} class="rounded-full px-3 py-2 text-berry transition active:scale-95">
+          ← Again
         </button>
-        <button type="button" onClick={() => answer(true)} tabIndex={flipped ? 0 : -1} class="min-h-14 rounded-2xl bg-leaf-soft text-lg font-bold text-leaf transition active:scale-[.98]">
-          Knew it
+        <UndoButton onClick={undo} disabled={!history.length} />
+        <button type="button" onClick={() => swipe.fling(1)} class="rounded-full px-3 py-2 text-leaf transition active:scale-95">
+          Knew it →
         </button>
       </div>
-      {!flipped && <p class="-mt-10 text-center text-sm text-ink-soft">Say it out loud, then turn the card over.</p>}
+      <p class="mt-2 text-center text-sm text-ink-soft">
+        {flipped ? 'Swipe right if you knew it, left to see it again.' : 'Say it out loud, then turn the card over.'}
+      </p>
     </>
   )
+}
+
+function UndoButton({ onClick, disabled, class: cls = '' }: { onClick: () => void; disabled: boolean; class?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      class={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold text-ink-soft ring-1 ring-hairline transition hover:text-ink active:scale-95 disabled:opacity-40 disabled:active:scale-100 ${cls}`}
+    >
+      <Icon.undo class="size-4" />
+      Undo
+    </button>
+  )
+}
+
+/** "Again" / "Knew it" label that fades in on the card as it is dragged. */
+function Stamp({ opacity, class: cls, children }: { opacity: number; class: string; children: ComponentChildren }) {
+  if (opacity <= 0) return null
+  return (
+    <span
+      class={`pointer-events-none absolute top-16 rounded-xl border-[3px] bg-card/85 px-3 py-1 text-xl font-extrabold tracking-wide uppercase ${cls}`}
+      style={{ opacity: Math.min(1, opacity) }}
+      aria-hidden="true"
+    >
+      {children}
+    </span>
+  )
+}
+
+/**
+ * Drag a card sideways to answer: right is "knew it", left is "again".
+ * `pull` runs from -1 to 1 as the card nears the answer threshold; `fling` throws it off screen.
+ */
+function useSwipe(onSwipe: (correct: boolean) => void) {
+  const [dx, setDx] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const [leaving, setLeaving] = useState<-1 | 0 | 1>(0)
+  const start = useRef<{ id: number; x: number; y: number } | null>(null)
+  const moved = useRef(false)
+  const offset = useRef(0)
+
+  function move(x: number) {
+    offset.current = x
+    setDx(x)
+  }
+
+  function fling(dir: -1 | 1) {
+    if (leaving) return
+    setDragging(false)
+    setLeaving(dir)
+    setTimeout(() => {
+      setLeaving(0)
+      move(0)
+      onSwipe(dir === 1)
+    }, 220)
+  }
+
+  function release(e: PointerEvent) {
+    if (!start.current || start.current.id !== e.pointerId) return
+    start.current = null
+    setDragging(false)
+    if (e.type === 'pointerup' && Math.abs(offset.current) > SWIPE_PX) fling(offset.current > 0 ? 1 : -1)
+    else move(0)
+  }
+
+  const x = leaving ? leaving * (window.innerWidth + 200) : dx
+  return {
+    leaving,
+    fling,
+    pull: leaving || dx / SWIPE_PX,
+    style: {
+      transform: `translateX(${x}px) rotate(${x / 18}deg)`,
+      transition: dragging ? 'none' : 'transform 0.22s ease-out',
+    },
+    bind: {
+      onPointerDown: (e: PointerEvent) => {
+        if (leaving || e.button > 0) return
+        start.current = { id: e.pointerId, x: e.clientX, y: e.clientY }
+        moved.current = false
+      },
+      onPointerMove: (e: PointerEvent) => {
+        const s = start.current
+        if (!s || s.id !== e.pointerId) return
+        const ddx = e.clientX - s.x
+        if (!moved.current) {
+          if (Math.abs(ddx) < 8) return
+          // Mostly vertical: leave it to the page scroll.
+          if (Math.abs(e.clientY - s.y) > Math.abs(ddx)) {
+            start.current = null
+            return
+          }
+          moved.current = true
+          setDragging(true)
+          ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+        }
+        move(ddx)
+      },
+      onPointerUp: release,
+      onPointerCancel: release,
+      // A drag ends in a click on the card; don't let it turn the card over.
+      onClickCapture: (e: MouseEvent) => {
+        if (!moved.current) return
+        moved.current = false
+        e.stopPropagation()
+        e.preventDefault()
+      },
+    },
+  }
 }
 
 export function EmptyBox() {
